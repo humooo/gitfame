@@ -20,13 +20,13 @@
 ## Сборка
 
 ```bash
-(cd gitfame/cmd/gitfame && go build .)
+(cd cmd/gitfame && go build .)
 ```
 
 ## Установка
 
 ```bash
-go install ./gitfame/cmd/gitfame/...
+go install ./cmd/gitfame/...
 ```
 
 ## Запуск
@@ -52,7 +52,7 @@ go test ./...
 Интеграционные тесты:
 
 ```bash
-go test -v ./gitfame/test/integration/...
+go test -v ./test/integration/...
 ```
 
 ## Важные детали

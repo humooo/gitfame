@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	configs "github.com/humooo/gitfame/gitfame/configs"
-	"github.com/humooo/gitfame/gitfame/internal"
+	configs "github.com/humooo/gitfame/configs"
+	"github.com/humooo/gitfame/internal"
 )
 
 func LoadMapping() ([]internal.MappingEntity, error) {

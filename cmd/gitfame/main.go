@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/humooo/gitfame/gitfame/internal"
-	"github.com/humooo/gitfame/gitfame/internal/utils"
-	"github.com/humooo/gitfame/gitfame/internal/utils/constants"
+	"github.com/humooo/gitfame/internal"
+	"github.com/humooo/gitfame/internal/utils"
+	"github.com/humooo/gitfame/internal/utils/constants"
 	flag "github.com/spf13/pflag"
 )
 

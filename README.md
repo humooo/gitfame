@@ -35,11 +35,31 @@ go install ./cmd/gitfame/...
 gitfame --repository=. --revision=HEAD --order-by=lines --format=tabular
 ```
 
+Пример tabular-вывода:
+
+```text
+Name  Lines Commits Files
+Alice 10    2       2
+Bob   3     1       1
+```
+
+Пример JSON-вывода:
+
+```json
+[{"name":"Alice","lines":10,"commits":2,"files":2},{"name":"Bob","lines":3,"commits":1,"files":1}]
+```
+
 Пример с фильтрами:
 
 ```bash
 gitfame --repository=. --extensions='.go,.md' --languages='go,markdown' --exclude='vendor/*'
 ```
+
+## Как считается статистика
+
+- Список файлов берётся из Git tree выбранной ревизии (`git ls-tree`), поэтому учитываются только tracked-файлы в состоянии этой ревизии.
+- Attribution строк считается через `git blame --porcelain`.
+- Для пустых файлов берётся последний коммит, изменявший файл (`git log -n 1`): увеличиваются `Commits` и `Files`, а `Lines` остаётся `0`.
 
 ## Тесты
 

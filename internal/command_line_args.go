@@ -1,6 +1,8 @@
 package internal
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -87,10 +89,33 @@ func validateGlobPatterns(patterns []string) error {
 	return nil
 }
 
+func parseFlags(flagSet *flag.FlagSet, args []string) error {
+	var parseOutput bytes.Buffer
+	flagSet.SetOutput(&parseOutput)
+
+	if err := flagSet.Parse(args); err != nil {
+		output := strings.TrimRight(parseOutput.String(), "\n")
+		if errors.Is(err, flag.ErrHelp) {
+			if output != "" {
+				_, _ = fmt.Fprintln(os.Stdout, output)
+			}
+
+			return err
+		}
+
+		if output != "" {
+			return errors.New(output)
+		}
+
+		return err
+	}
+
+	return nil
+}
+
 func (cla *CommandLineArgs) GetCommandLineArgs(args []string) error {
 	flagSet := flag.NewFlagSet("gitfame", flag.ContinueOnError)
 	flagSet.SortFlags = false
-	flagSet.SetOutput(os.Stdout)
 
 	repositoryPath := flagSet.String("repository", "./", "Repository path.")
 	commitPointer := flagSet.String("revision", "HEAD", "Pointer to a commit.")
@@ -102,7 +127,7 @@ func (cla *CommandLineArgs) GetCommandLineArgs(args []string) error {
 	exclude := flagSet.StringSlice("exclude", []string{}, "Glob-patterns to Exclude.")
 	restricted := flagSet.StringSlice("restrict-to", []string{}, "List of restrictions to match.")
 
-	if err := flagSet.Parse(args); err != nil {
+	if err := parseFlags(flagSet, args); err != nil {
 		return err
 	}
 

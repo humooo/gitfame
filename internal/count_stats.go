@@ -16,12 +16,19 @@ type Stats struct {
 	UserToFiles      map[string]map[string]bool
 	UserToNumFiles   map[string]int
 	CombinedData     map[string][3]int
-	SortedData       [][4]string
+	SortedData       []outputRow
 }
 
 type blameLine struct {
 	CommitHash string
 	Person     string
+}
+
+type outputRow struct {
+	Name    string `json:"name"`
+	Lines   int    `json:"lines"`
+	Commits int    `json:"commits"`
+	Files   int    `json:"files"`
 }
 
 func CountStatistics(fp *FilesParams) (Stats, error) {
@@ -227,64 +234,58 @@ func (stats *Stats) CombineResults() {
 }
 
 func (stats *Stats) SortResults(sortKey constants.OrderKey) {
-	var users []string
+	users := make([]string, 0, len(stats.UserToNumCommits))
 	for user := range stats.UserToNumCommits {
 		if user != "Not Committed Yet" {
 			users = append(users, user)
 		}
 	}
 
-	switch sortKey {
-	case constants.Lines:
-		sort.SliceStable(users, func(i, j int) bool {
-			if stats.CombinedData[users[i]][0] == stats.CombinedData[users[j]][0] {
-				if stats.CombinedData[users[i]][1] == stats.CombinedData[users[j]][1] {
-					if stats.CombinedData[users[i]][2] == stats.CombinedData[users[j]][2] {
-						return users[i] < users[j]
-					}
-					return stats.CombinedData[users[i]][2] > stats.CombinedData[users[j]][2]
-				}
-				return stats.CombinedData[users[i]][1] > stats.CombinedData[users[j]][1]
-			}
-			return stats.CombinedData[users[i]][0] > stats.CombinedData[users[j]][0]
-		})
-	case constants.Commits:
-		sort.SliceStable(users, func(i, j int) bool {
-			if stats.CombinedData[users[i]][1] == stats.CombinedData[users[j]][1] {
-				if stats.CombinedData[users[i]][0] == stats.CombinedData[users[j]][0] {
-					if stats.CombinedData[users[i]][2] == stats.CombinedData[users[j]][2] {
-						return users[i] < users[j]
-					}
-					return stats.CombinedData[users[i]][2] > stats.CombinedData[users[j]][2]
-				}
-				return stats.CombinedData[users[i]][0] > stats.CombinedData[users[j]][0]
-			}
-			return stats.CombinedData[users[i]][1] > stats.CombinedData[users[j]][1]
-		})
-	case constants.Files:
-		sort.SliceStable(users, func(i, j int) bool {
-			if stats.CombinedData[users[i]][2] == stats.CombinedData[users[j]][2] {
-				if stats.CombinedData[users[i]][0] == stats.CombinedData[users[j]][0] {
-					if stats.CombinedData[users[i]][1] == stats.CombinedData[users[j]][1] {
-						return users[i] < users[j]
-					}
-					return stats.CombinedData[users[i]][1] > stats.CombinedData[users[j]][1]
-				}
-				return stats.CombinedData[users[i]][0] > stats.CombinedData[users[j]][0]
-			}
-			return stats.CombinedData[users[i]][2] > stats.CombinedData[users[j]][2]
-		})
-	}
+	priority := sortPriority(sortKey)
+	sort.SliceStable(users, func(i, j int) bool {
+		return stats.userLess(users[i], users[j], priority)
+	})
 
-	sortedStats := make([][4]string, 0, len(users))
+	sortedStats := make([]outputRow, 0, len(users))
 	for _, user := range users {
-		sortedStats = append(sortedStats, [4]string{
-			user,
-			strconv.Itoa(stats.CombinedData[user][0]),
-			strconv.Itoa(stats.CombinedData[user][1]),
-			strconv.Itoa(stats.CombinedData[user][2]),
+		userData := stats.CombinedData[user]
+		sortedStats = append(sortedStats, outputRow{
+			Name:    user,
+			Lines:   userData[linesIdx],
+			Commits: userData[commitsIdx],
+			Files:   userData[filesIdx],
 		})
 	}
 
 	stats.SortedData = sortedStats
+}
+
+const (
+	linesIdx = iota
+	commitsIdx
+	filesIdx
+)
+
+func sortPriority(sortKey constants.OrderKey) [3]int {
+	switch sortKey {
+	case constants.Commits:
+		return [3]int{commitsIdx, linesIdx, filesIdx}
+	case constants.Files:
+		return [3]int{filesIdx, linesIdx, commitsIdx}
+	default:
+		return [3]int{linesIdx, commitsIdx, filesIdx}
+	}
+}
+
+func (stats *Stats) userLess(leftUser, rightUser string, priority [3]int) bool {
+	left := stats.CombinedData[leftUser]
+	right := stats.CombinedData[rightUser]
+
+	for _, metric := range priority {
+		if left[metric] != right[metric] {
+			return left[metric] > right[metric]
+		}
+	}
+
+	return leftUser < rightUser
 }

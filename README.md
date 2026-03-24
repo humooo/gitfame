@@ -1,52 +1,62 @@
 # gitfame
 
-`gitfame` is a CLI utility that calculates per-author statistics for a Git repository at a given revision.
+`gitfame` — CLI-утилита для подсчёта статистики по авторам Git-репозитория на выбранной ревизии.
 
-## Features
+## Что считает
 
-- Line count (`Lines`)
-- Unique commit count (`Commits`)
-- Unique file count (`Files`)
-- Author or committer mode (`--use-committer`)
-- Filters: extensions, languages, exclude glob, restrict-to glob
-- Output formats: `tabular`, `csv`, `json`, `json-lines`
+- количество строк (`Lines`)
+- количество уникальных коммитов (`Commits`)
+- количество уникальных файлов (`Files`)
 
-## Build
+## Возможности
+
+- расчёт по `author` (по умолчанию) или `committer` (`--use-committer`)
+- фильтрация по расширениям (`--extensions`)
+- фильтрация по языкам (`--languages`)
+- исключение файлов через glob (`--exclude`)
+- ограничение выборки через glob (`--restrict-to`)
+- форматы вывода: `tabular`, `csv`, `json`, `json-lines`
+
+## Сборка
 
 ```bash
-(cd cmd/gitfame && go build .)
+(cd gitfame/cmd/gitfame && go build .)
 ```
 
-## Install
+## Установка
 
 ```bash
-go install ./cmd/gitfame/...
+go install ./gitfame/cmd/gitfame/...
 ```
 
-## Run
+## Запуск
 
 ```bash
 gitfame --repository=. --revision=HEAD --order-by=lines --format=tabular
 ```
 
-Example with filters:
+Пример с фильтрами:
 
 ```bash
 gitfame --repository=. --extensions='.go,.md' --languages='go,markdown' --exclude='vendor/*'
 ```
 
-## Tests
+## Тесты
+
+Все тесты:
 
 ```bash
 go test ./...
 ```
 
+Интеграционные тесты:
+
 ```bash
 go test -v ./gitfame/test/integration/...
 ```
 
-## Notes
+## Важные детали
 
-- Unknown languages in `--languages` are ignored and reported as a warning in `stderr`.
-- Invalid flag values (including invalid glob patterns) return a non-zero exit code.
-- The tool does not modify repository state.
+- Неизвестные языки в `--languages` не ограничивают выборку и выводят warning в `stderr`.
+- Невалидные значения флагов (включая невалидные glob-паттерны) завершают программу с ненулевым кодом.
+- Утилита не изменяет состояние репозитория.

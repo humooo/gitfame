@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/humooo/gitfame/internal/utils/constants"
+	"github.com/humooo/gitfame/gitfame/internal/utils/constants"
 	flag "github.com/spf13/pflag"
 )
 

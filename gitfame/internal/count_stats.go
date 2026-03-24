@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/humooo/gitfame/internal/utils/constants"
+	"github.com/humooo/gitfame/gitfame/internal/utils/constants"
 )
 
 type Stats struct {

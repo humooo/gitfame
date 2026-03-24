@@ -2,26 +2,17 @@ package utils
 
 import (
 	"encoding/json"
-	"os"
+	"fmt"
 
-	"github.com/humooo/urlshortener/internal"
+	configs "github.com/humooo/gitfame/configs"
+	"github.com/humooo/gitfame/internal"
 )
 
-func LoadMapping() []internal.MappingEntity {
-	curDir, err := os.Getwd()
-	internal.ProcessError(err, "LoadMapping")
-
-	rootPath := FindRoot(curDir)
-	mappingData, err := os.Open(rootPath + "/gitfame/configs/language_extensions.json")
-	defer func(mappingData *os.File) {
-		err = mappingData.Close()
-		internal.ProcessError(err, "LoadMapping")
-	}(mappingData)
-	internal.ProcessError(err, "LoadMapping")
-
+func LoadMapping() ([]internal.MappingEntity, error) {
 	var mapping []internal.MappingEntity
-	err = json.NewDecoder(mappingData).Decode(&mapping)
-	internal.ProcessError(err, "LoadMapping")
+	if err := json.Unmarshal(configs.LanguageExtensionsJSON, &mapping); err != nil {
+		return nil, fmt.Errorf("could not decode language mapping: %w", err)
+	}
 
-	return mapping
+	return mapping, nil
 }

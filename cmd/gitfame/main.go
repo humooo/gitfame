@@ -1,50 +1,64 @@
 package main
 
 import (
-	"github.com/humooo/urlshortener/internal"
-	"github.com/humooo/urlshortener/internal/utils"
-	"github.com/humooo/urlshortener/internal/utils/constants"
+	"errors"
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/humooo/gitfame/internal"
+	"github.com/humooo/gitfame/internal/utils"
+	"github.com/humooo/gitfame/internal/utils/constants"
+	flag "github.com/spf13/pflag"
 )
 
-type FameHandler struct {
-	fp      *internal.FilesParams
-	cla     *internal.CommandLineArgs
-	mapping []internal.MappingEntity
-	stats   *internal.Stats
-}
-
-func NewFameHandler() *FameHandler {
+func run(args []string) error {
 	cla := internal.NewCommandLineArgs()
-	err := cla.GetCommandLineArgs()
-	internal.ProcessError(err, "NewFameHandler")
+	if err := cla.GetCommandLineArgs(args); err != nil {
+		return err
+	}
 
-	mapping := utils.LoadMapping()
+	mapping, err := utils.LoadMapping()
+	if err != nil {
+		return err
+	}
+
 	fp := internal.NewFilesParams(mapping, cla)
-	fp.GetAllFiles(*fp.Cla.CommitPointer, *fp.Cla.RepositoryPath)
-	return &FameHandler{fp: fp, cla: cla, mapping: mapping}
-}
+	if len(fp.UnknownLanguages) > 0 {
+		_, _ = fmt.Fprintf(os.Stderr, "warning: unknown languages are ignored: %s\n", strings.Join(fp.UnknownLanguages, ", "))
+	}
 
-func (handler *FameHandler) GitFame() {
-	stats := internal.CountStatistics(handler.fp)
-	handler.stats = &stats
-}
+	if err := fp.GetAllFiles(cla.CommitPointer, cla.RepositoryPath); err != nil {
+		return err
+	}
 
-func (handler *FameHandler) PrintResults() {
-	handler.stats.SortResults(handler.cla.SortOrderKey)
-	switch handler.cla.OutputFormat {
+	stats, err := internal.CountStatistics(fp)
+	if err != nil {
+		return err
+	}
+
+	stats.SortResults(cla.SortOrderKey)
+	switch cla.OutputFormat {
 	case constants.Tabular:
-		handler.stats.PrintTabular()
+		return stats.PrintTabular()
 	case constants.CSV:
-		handler.stats.PrintCSV()
+		return stats.PrintCSV()
 	case constants.SimpleJSON:
-		handler.stats.PrintJSON()
+		return stats.PrintJSON()
 	case constants.JSONLines:
-		handler.stats.PrintJSONLines()
+		return stats.PrintJSONLines()
+	default:
+		return fmt.Errorf("unsupported output format: %s", cla.OutputFormat)
 	}
 }
 
 func main() {
-	handler := NewFameHandler()
-	handler.GitFame()
-	handler.PrintResults()
+	if err := run(os.Args[1:]); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			os.Exit(0)
+		}
+
+		_, _ = fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }

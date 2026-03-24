@@ -9,76 +9,101 @@ import (
 	"text/tabwriter"
 )
 
-func (stats *Stats) PrintTabular() {
+type outputRow struct {
+	Name    string `json:"name"`
+	Lines   int    `json:"lines"`
+	Commits int    `json:"commits"`
+	Files   int    `json:"files"`
+}
+
+func parseOutputRow(line [4]string) (outputRow, error) {
+	lines, err := strconv.Atoi(line[1])
+	if err != nil {
+		return outputRow{}, fmt.Errorf("could not convert line count %q: %w", line[1], err)
+	}
+
+	commits, err := strconv.Atoi(line[2])
+	if err != nil {
+		return outputRow{}, fmt.Errorf("could not convert commit count %q: %w", line[2], err)
+	}
+
+	files, err := strconv.Atoi(line[3])
+	if err != nil {
+		return outputRow{}, fmt.Errorf("could not convert file count %q: %w", line[3], err)
+	}
+
+	return outputRow{
+		Name:    line[0],
+		Lines:   lines,
+		Commits: commits,
+		Files:   files,
+	}, nil
+}
+
+func (stats *Stats) PrintTabular() error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-	_, err := fmt.Fprintln(w, "Name\tLines\tCommits\tFiles")
-	ProcessError(err, "PrintTabular")
-
-	for _, line := range stats.SortedData {
-		_, err = fmt.Fprintln(w, line[0]+"\t"+line[1]+"\t"+line[2]+"\t"+line[3])
-		ProcessError(err, "PrintTabular")
+	if _, err := fmt.Fprintln(w, "Name\tLines\tCommits\tFiles"); err != nil {
+		return err
 	}
 
-	err = w.Flush()
-	ProcessError(err, "PrintTabular")
+	for _, line := range stats.SortedData {
+		if _, err := fmt.Fprintln(w, line[0]+"\t"+line[1]+"\t"+line[2]+"\t"+line[3]); err != nil {
+			return err
+		}
+	}
+
+	return w.Flush()
 }
 
-func (stats *Stats) PrintCSV() {
+func (stats *Stats) PrintCSV() error {
 	header := []string{"Name", "Lines", "Commits", "Files"}
-	w := csv.NewWriter(os.Stdout)
-	var buff [][]string
-	buff = append(buff, header)
+	writer := csv.NewWriter(os.Stdout)
+
+	rows := make([][]string, 0, len(stats.SortedData)+1)
+	rows = append(rows, header)
 	for _, line := range stats.SortedData {
-		buff = append(buff, []string{line[0], line[1], line[2], line[3]})
+		rows = append(rows, []string{line[0], line[1], line[2], line[3]})
 	}
-	err := w.WriteAll(buff)
-	ProcessError(err, "PrintCSV")
+
+	return writer.WriteAll(rows)
 }
 
-func (stats *Stats) PrintJSON() {
-	var buff []map[string]interface{}
+func (stats *Stats) PrintJSON() error {
+	rows := make([]outputRow, 0, len(stats.SortedData))
 	for _, line := range stats.SortedData {
-		lines, err := strconv.Atoi(line[1])
-		ProcessError(err, "PrintJSON: could not convert num of lines")
+		row, err := parseOutputRow(line)
+		if err != nil {
+			return err
+		}
 
-		commits, err := strconv.Atoi(line[2])
-		ProcessError(err, "PrintJSON: could not convert num of commits")
-
-		files, err := strconv.Atoi(line[3])
-		ProcessError(err, "PrintJSON: could not convert num of files")
-
-		buff = append(buff, map[string]interface{}{
-			"name":    line[0],
-			"lines":   lines,
-			"commits": commits,
-			"files":   files,
-		})
+		rows = append(rows, row)
 	}
-	jsonData, err := json.Marshal(buff)
-	ProcessError(err, "PrintJSON: could not marshal json")
 
-	fmt.Println(string(jsonData))
+	jsonData, err := json.Marshal(rows)
+	if err != nil {
+		return fmt.Errorf("could not marshal json: %w", err)
+	}
+
+	_, err = fmt.Fprintln(os.Stdout, string(jsonData))
+	return err
 }
 
-func (stats *Stats) PrintJSONLines() {
+func (stats *Stats) PrintJSONLines() error {
 	for _, line := range stats.SortedData {
-		lines, err := strconv.Atoi(line[1])
-		ProcessError(err, "PrintJSONLines: could not convert num of lines")
+		row, err := parseOutputRow(line)
+		if err != nil {
+			return err
+		}
 
-		commits, err := strconv.Atoi(line[2])
-		ProcessError(err, "PrintJSONLines: could not convert num of commits")
+		jsonLine, err := json.Marshal(row)
+		if err != nil {
+			return fmt.Errorf("could not marshal json line: %w", err)
+		}
 
-		files, err := strconv.Atoi(line[3])
-		ProcessError(err, "PrintJSONLines: could not convert num of files")
-
-		jsonLine, err := json.Marshal(map[string]interface{}{
-			"name":    line[0],
-			"lines":   lines,
-			"commits": commits,
-			"files":   files,
-		})
-		ProcessError(err, "PrintJSONLines: could not marshal json")
-
-		fmt.Println(string(jsonLine))
+		if _, err := fmt.Fprintln(os.Stdout, string(jsonLine)); err != nil {
+			return err
+		}
 	}
+
+	return nil
 }

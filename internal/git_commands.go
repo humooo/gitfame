@@ -1,47 +1,65 @@
 package internal
 
 import (
+	"fmt"
 	"os/exec"
 	"strings"
 )
 
-func GitShow(commit, execDir string) error {
-	gitShowCmd := exec.Command("git", "show", commit)
+func GitCommitExists(revision, execDir string) error {
+	gitShowCmd := exec.Command("git", "rev-parse", "--verify", revision+"^{commit}")
 	gitShowCmd.Dir = execDir
 
-	err := gitShowCmd.Run()
-	return err
+	return gitShowCmd.Run()
 }
 
-func GitLsTree(commit, execDir string) (string, error) {
+func GitLsTree(commit, execDir string) ([]string, error) {
 	gitLsTreeCmd := exec.Command("git", "ls-tree", "-r", "--name-only", commit)
 	gitLsTreeCmd.Dir = execDir
 
-	var gitLsTreeCmdOutput strings.Builder
-	gitLsTreeCmd.Stdout = &gitLsTreeCmdOutput
+	output, err := gitLsTreeCmd.Output()
+	if err != nil {
+		return nil, err
+	}
 
-	err := gitLsTreeCmd.Run()
-	return gitLsTreeCmdOutput.String(), err
+	trimmed := strings.TrimSpace(string(output))
+	if trimmed == "" {
+		return []string{}, nil
+	}
+
+	return strings.Split(trimmed, "\n"), nil
 }
 
 func GitBlame(commit, pathToFile, execDir string) (string, error) {
-	gitBlameCmd := exec.Command("git", "blame", "--line-porcelain", "-b", commit, pathToFile)
+	gitBlameCmd := exec.Command("git", "blame", "--porcelain", commit, "--", pathToFile)
 	gitBlameCmd.Dir = execDir
 
-	var gitBlameCmdOutput strings.Builder
-	gitBlameCmd.Stdout = &gitBlameCmdOutput
+	output, err := gitBlameCmd.Output()
+	if err != nil {
+		return "", err
+	}
 
-	err := gitBlameCmd.Run()
-	return gitBlameCmdOutput.String(), err
+	return string(output), nil
 }
 
-func GitLog(commit, pathToFile, execDir string) (string, error) {
-	gitLogCmd := exec.Command("git", "log", "-p", commit, "--follow", "--", pathToFile)
+func GitLogLastIdentity(commit, pathToFile, execDir string) (string, string, string, error) {
+	gitLogCmd := exec.Command("git", "log", "-1", "--format=%H%x00%an%x00%cn", commit, "--", pathToFile)
 	gitLogCmd.Dir = execDir
 
-	var gitLogCmdOutput strings.Builder
-	gitLogCmd.Stdout = &gitLogCmdOutput
+	output, err := gitLogCmd.Output()
+	if err != nil {
+		return "", "", "", err
+	}
 
-	err := gitLogCmd.Run()
-	return gitLogCmdOutput.String(), err
+	trimmed := strings.TrimSpace(string(output))
+	if trimmed == "" {
+		return "", "", "", fmt.Errorf("no commits found for file %q", pathToFile)
+	}
+
+	parts := strings.SplitN(trimmed, "\x00", 3)
+	if len(parts) != 3 {
+		return "", "", "", fmt.Errorf("unexpected git log output for file %q", pathToFile)
+	}
+
+	return parts[0], parts[1], parts[2], nil
 }
